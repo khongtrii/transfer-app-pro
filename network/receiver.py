@@ -1,52 +1,36 @@
+from PyQt6.QtCore import QObject, pyqtSignal
 import asyncio
-import json
+import threading
 
-CHUNK_SIZE = 65536
+class ReceiverClient(QObject):
+    connected = pyqtSignal(str)
+    failed = pyqtSignal(str)
 
-class ReceiverClient:
     def __init__(self, host, port=8888):
+        super().__init__()
         self.host = host
         self.port = port
         self.reader = None
         self.writer = None
 
-    async def connect(self):
-        self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
-        msg = await self.reader.readline()
-        print(msg.decode().strip())
-        
-    async def get_file_list(self):
-        self.writer.write(b"GET_FILE_LIST\n")
-        await self.writer.drain()
+    def connect(self):
+        threading.Thread(target=self._run, daemon=True).start()
 
-        data = await self.reader.readline()
-        files = json.loads(data.decode())
-        return files
+    def _run(self):
+        try:
+            asyncio.run(self._connect())
+        except Exception as e:
+            self.failed.emit(str(e))
 
-    async def download_file(self, filename, save_path):
-        self.writer.write(f"REQUEST {filename}\n".encode())
-        await self.writer.drain()
+    async def _connect(self):
+        self.reader, self.writer = await asyncio.open_connection(
+            self.host,
+            self.port
+        )
 
-        header = await self.reader.readline()
-        header = header.decode().strip()
+        msg = await self.reader.read(1024)
+        self.connected.emit(msg.decode().strip())
 
-        if not header.startswith("FILE"):
-            return False
-
-        _, size = header.split(" ")
-        size = int(size)
-
-        received = 0
-        with open(save_path, "wb") as f:
-            while received < size:
-                chunk = await self.reader.read(min(CHUNK_SIZE, size - received))
-                if not chunk:
-                    break
-                f.write(chunk)
-                received += len(chunk)
-
-        return True
-
-    async def close(self):
-        self.writer.close()
-        await self.writer.wait_closed()
+    def close(self):
+        if self.writer:
+            self.writer.close()

@@ -3,52 +3,61 @@ import asyncio
 import threading
 
 class SenderServer(QObject):
-    server_started = pyqtSignal()
-    server_failed = pyqtSignal(str)
 
-    def __init__(self, host="0.0.0.0", port=8888):
+    ping_started = pyqtSignal()
+    ping_failed = pyqtSignal(str)
+
+
+    def __init__(self, host='0.0.0.0', port='8888'):
         super().__init__()
         self.host = host
         self.port = port
         self._server = None
         self._loop = None
+        self._task = None
 
-    def start(self):
-        threading.Thread(target=self._run, daemon=True).start()
-
-    def _run(self):
+    def _ping(self):
+        threading.Thread(
+            target=self._active,
+            daemon=True
+        ).start()
+    
+    def _active(self):
         try:
-            asyncio.run(self._main())
+            asyncio.run(
+                self._main()
+            )
         except Exception as e:
             if not isinstance(e, asyncio.CancelledError):
-                self.server_failed.emit(str(e))
-
+                self.ping_failed.emit(str(e))
+    
     async def _main(self):
         self._loop = asyncio.get_running_loop()
 
         self._server = await asyncio.start_server(
-            self.handle_client,
-            self.host,
-            self.port
+            client_connected_cb=self._handle,
+            host=self.host,
+            port=self.port
         )
 
-        self.server_started.emit()
+        self.ping_started.emit()
 
-        async with self._server:
-            try:
-                await self._server.serve_forever()
-            except asyncio.CancelledError:
-                pass
+        self._serve_task = asyncio.create_task(self._server.serve_forever())
 
-    async def handle_client(self, reader, writer):
         try:
-            data = await reader.read(1024)
-            writer.write(b"Connected\n")
-            await writer.drain()
+            await self._serve_task
+        except asyncio.CancelledError:
+            pass
         finally:
-            writer.close()
-            await writer.wait_closed()
+            self._server.close()
+            await self._server.wait_closed()
 
-    def stop(self):
-        if self._server:
-            self._loop.call_soon_threadsafe(self._server.close)
+    async def _handle(self, reader, writer):
+        pass
+
+    def _stop(self):
+        if self._loop and self._serve_task:
+            def shutdown():
+                self._serve_task.cancel()
+
+            self._loop.call_soon_threadsafe(shutdown)

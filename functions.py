@@ -1,18 +1,38 @@
 import sys
 from PyQt6 import QtWidgets, uic
-from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QFileDialog, QListWidget
 from network.functions import *
 from network.sender import *
 from network.receiver import *
-    
+
+import numpy as np
+
 class ReceiverWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi(r"UI\fileReceiveUI.ui", self)
 
-        self.client = ReceiverClient(host=self.hostIPadd.text())
-        self.getBtn.clicked.connect(self.client.connect())
-        
+        self.getBtn.clicked.connect(self.start_connect)
+
+    def start_connect(self):
+        host = self.hostIPadd.text()
+        self.client = ReceiverClient(host=host)
+
+        self.client.connected.connect(self.on_connected)
+        self.client.failed.connect(self.on_failed)
+
+        self.client.connect()
+
+    def on_connected(self, msg):
+        print("Server says:", msg)
+
+    def on_failed(self, msg):
+        print("Connection failed:", msg)
+
+    def closeEvent(self, event):
+        if hasattr(self, "client"):
+            self.client.close()
+        event.accept()       
 
 
 class SenderWindow(QtWidgets.QMainWindow):
@@ -28,26 +48,17 @@ class SenderWindow(QtWidgets.QMainWindow):
             border-radius:5px;
             background-color:red;
         """)
-
+        
         self.server = SenderServer()
-        self.server.server_started.connect(self.on_server_started)
-        self.server.server_failed.connect(self.on_server_failed)
-        self.server.start()
+        self.server.ping_started.connect(self._ping_successed)
+        self.server.ping_failed.connect(self._ping_failed)
+        self.server._ping()
 
-        self.browseFileBtn.clicked.connect(self.browse_file)
+        self.browseFileBtn.clicked.connect(self._fileBrowse)
 
-        self.label_2.setText(getIp())
-
-        self.filePaths.clear()
-
-        self.sentBtn.clicked.connect(self.updateProgressBar)
-        self.sentBtn.setEnabled(False)
-
-        self.progressBar.setMinimum(0)
-        self.progressBar.setMaximum(100)
         self.progressBar.setValue(0)
 
-    def on_server_started(self):
+    def _ping_successed(self):
         self.serverStatus.setStyleSheet("""
             min-width:10px;
             min-height:10px;
@@ -57,7 +68,7 @@ class SenderWindow(QtWidgets.QMainWindow):
             background-color:#00c853;
         """)
 
-    def on_server_failed(self, msg):
+    def _ping_failed(self, msg):
         self.serverStatus.setStyleSheet("""
             min-width:10px;
             min-height:10px;
@@ -68,18 +79,24 @@ class SenderWindow(QtWidgets.QMainWindow):
         """)
         print("Server error:", msg)
 
-    def browse_file(self):
-        file_paths, _ = QFileDialog.getOpenFileNames(self, "Select File")
-        if file_paths:
+    def _fileBrowse(self):
+        files = QFileDialog.getOpenFileNames(caption="Select File")
+        if files[0]:
             self.filePaths.clear()
-            self.filePaths.addItems(file_paths)
-            self.sentBtn.setEnabled(True)
+            self.filePaths.addItems(files[0])
+            self.filePaths.show()
 
-    def updateProgressBar(self):
-        current = self.progressBar.value()
-        if current < 100:
-            self.progressBar.setValue(current + 10)
+    def _updateProgress(self, cur, total):
+        if total <= 0:
+            percent = 0
+        else:
+            ratio = cur / total
+            ratio = max(0.0, min(1.0, ratio))
+            percent = round(ratio * 100)
 
-    def closeEvent(self, event):
-        self.server.stop()
-        event.accept()
+        self.progressBar.setValue(percent)
+
+
+    def closeEvent(self, a0):
+        self.server._stop()
+        a0.accept()
