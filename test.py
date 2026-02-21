@@ -10,7 +10,7 @@ async def main():
 
     data = await reader.read(4096)
     print("Server response:")
-    display(pd.DataFrame(data.decode()))
+    print(pd.DataFrame(data.decode()))
 
     writer.close()
     await writer.wait_closed()
