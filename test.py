@@ -1,4 +1,5 @@
 import asyncio
+import json
 import pandas as pd
 
 async def main():
@@ -10,7 +11,10 @@ async def main():
 
     data = await reader.read(4096)
     print("Server response:")
-    print(pd.DataFrame(data.decode()))
+
+    data_json = json.loads(data.decode())
+    df = pd.DataFrame(data_json)
+    print(df)
 
     writer.close()
     await writer.wait_closed()
