@@ -2,9 +2,10 @@ import asyncio
 
 
 async def main():
-    reader, writer = await asyncio.open_connection("127.0.0.1", 8888)
+    ip_host = input("Entry server ip: ")
+    reader, writer = await asyncio.open_connection(ip_host, 8888)
 
-    writer.write(b"LIST\n")
+    writer.write(b"PING_LIST\n")
     await writer.drain()
 
     data = await reader.read(4096)
