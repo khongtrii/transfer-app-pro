@@ -52,11 +52,18 @@ class SenderWindow(QtWidgets.QMainWindow):
         self.server = SenderServer()
         self.server.ping_started.connect(self._ping_successed)
         self.server.ping_failed.connect(self._ping_failed)
+        self.server.ping_shared.connect(self._updateFilePath)
+        self.server._reload_shared()
         self.server._ping()
 
         self.browseFileBtn.clicked.connect(self._fileBrowse)
 
         self.progressBar.setValue(0)
+
+        self.refreshBtn.clicked.connect(self.server._refreshFile)
+        
+        ip = getIp()
+        self.serverIp.setText(ip if ip else "Không lấy được IP")
 
     def _ping_successed(self):
         self.serverStatus.setStyleSheet("""
@@ -80,11 +87,8 @@ class SenderWindow(QtWidgets.QMainWindow):
         print("Server error:", msg)
 
     def _fileBrowse(self):
-        files = QFileDialog.getOpenFileNames(caption="Select File")
-        if files[0]:
-            self.filePaths.clear()
-            self.filePaths.addItems(files[0])
-            self.filePaths.show()
+        paths = QFileDialog.getOpenFileNames(caption="Select File")
+        self.server._addFile(paths[0])
 
     def _updateProgress(self, cur, total):
         if total <= 0:
@@ -96,6 +100,10 @@ class SenderWindow(QtWidgets.QMainWindow):
 
         self.progressBar.setValue(percent)
 
+    def _updateFilePath(self, files):
+        self.filePaths.clear()
+        for f in files:
+            self.filePaths.addItem(f["name"])
 
     def closeEvent(self, a0):
         self.server._stop()

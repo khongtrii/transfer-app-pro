@@ -133,6 +133,36 @@ QPushButton:pressed {
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QPushButton" name="refreshBtn">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">QPushButton {
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 12px;
+}
+
+QPushButton:hover {
+    background-color: #45a049;
+}
+
+QPushButton:pressed {
+    background-color: #3e8e41;
+}
+</string>
+           </property>
+           <property name="text">
+            <string>Refresh</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>
@@ -188,7 +218,7 @@ QPushButton:pressed {
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_3">
              <item>
-              <widget class="QLabel" name="label_2">
+              <widget class="QLabel" name="serverIp">
                <property name="styleSheet">
                 <string notr="true">background-color: rgb(76, 76, 76);border-radius:6px;</string>
                </property>
