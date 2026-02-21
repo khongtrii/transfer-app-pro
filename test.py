@@ -1,5 +1,5 @@
 import asyncio
-
+import pandas as pd
 
 async def main():
     ip_host = input("Entry server ip: ")
@@ -10,7 +10,7 @@ async def main():
 
     data = await reader.read(4096)
     print("Server response:")
-    print(data.decode())
+    display(pd.DataFrame(data.decode()))
 
     writer.close()
     await writer.wait_closed()
